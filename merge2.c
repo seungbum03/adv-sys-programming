@@ -1,10 +1,11 @@
-//Beom's code
+//Beom's
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
 
 int readaline_and_out(FILE *fin, FILE *fout);
+int str_reverse(char *str);
 
 int
 main(int argc, char *argv[])
@@ -87,3 +88,18 @@ readaline_and_out(FILE *fin, FILE *fout)
     return 0;
 }
 
+char*
+str_reverse(char *str)
+{
+	char *p1 = str;
+	int len = strlen(str);
+	char *p2 = str + len - 1;
+
+	while (p1 < p2) {
+		char tmp = *p1;
+		*p1++ = *p2;
+		*p2-- = tmp;
+	}
+
+	return str;
+}
