@@ -1,11 +1,12 @@
 //Beom's test
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
 
 int readaline_and_out(FILE *fin, FILE *fout);
-int str_reverse(char *str);
+char* str_reverse(char *str);
 
 int
 main(int argc, char *argv[])
@@ -33,9 +34,10 @@ main(int argc, char *argv[])
         perror(argv[3]);
         goto leave2;
     }
-    
+   //file open completed
+
     gettimeofday(&before, NULL);
-    do {
+    /*do {
         if (!eof1) {
             if (!readaline_and_out(file1, fout)) {
                 line1++; lineout++;
@@ -49,6 +51,9 @@ main(int argc, char *argv[])
                 eof2 = 1;
         }
     } while (!eof1 || !eof2);
+   */
+    readaline_and_out(file1,fout);
+   
     gettimeofday(&after, NULL);
     
     duration = (after.tv_sec - before.tv_sec) * 1000000 + (after.tv_usec - before.tv_usec);
@@ -72,8 +77,16 @@ int
 readaline_and_out(FILE *fin, FILE *fout)
 {    
     int ch, count = 0;
+    char *buf;
+    size_t leng;
+    int i=0;
+    buf = (char*)malloc(sizeof(char)*1024);
 
-    do {
+
+  /*  do {
+
+       
+        
         if ((ch = fgetc(fin)) == EOF) {
             if (!count)
                 return 1;
@@ -84,7 +97,11 @@ readaline_and_out(FILE *fin, FILE *fout)
         }
         fputc(ch, fout);
         count++;
-    } while (ch != 0x0a);
+        
+
+    } while (ch != 0x0a); */
+    leng = fread(buf, 1024, 1, fin);
+    printf("%s",buf);
     return 0;
 }
 
