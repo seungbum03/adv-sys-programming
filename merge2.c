@@ -5,7 +5,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-int readaline_and_out(FILE *fin, FILE *fout);
+int readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout);
 char* str_reverse(char *str);
 
 int
@@ -17,7 +17,6 @@ main(int argc, char *argv[])
     struct timeval before, after;
     int duration;
     int ret = 1;
-
     if (argc != 4) {
         fprintf(stderr, "usage: %s file1 file2 fout\n", argv[0]);
         goto leave0;
@@ -35,9 +34,10 @@ main(int argc, char *argv[])
         goto leave2;
     }
    //file open completed
-
+	
     gettimeofday(&before, NULL);
-    /*do {
+    
+	/*do {
         if (!eof1) {
             if (!readaline_and_out(file1, fout)) {
                 line1++; lineout++;
@@ -52,7 +52,7 @@ main(int argc, char *argv[])
         }
     } while (!eof1 || !eof2);
    */
-    readaline_and_out(file1,fout);
+    readaline_and_out(file1,file2,fout);
    
     gettimeofday(&after, NULL);
     
@@ -74,34 +74,58 @@ leave0:
 /* Read a line from fin and write it to fout */
 /* return 1 if fin meets end of file */
 int
-readaline_and_out(FILE *fin, FILE *fout)
+readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout)
 {    
     int ch, count = 0;
-    char *buf;
-    size_t leng;
-    int i=0;
-    buf = (char*)malloc(sizeof(char)*1024);
+    char *buf1;
+	char *buf2;
+    char *ptr1;
+	char *ptr2;
+
+	size_t leng1, leng2;
+    int i=0,j=0;
+	long len1, len2;
+
+	//finding file size
+	fseek(fin1, 0, SEEK_END);
+	len1 = ftell(fin1);
+	fseek(fin1, SEEK_CUR, 0);
+
+	fseek(fin2, 0, SEEK_END);
+	len2 = ftell(fin2);
+	fseek(fin2, SEEK_CUR, 0);
+	
+	printf("len1 : %d, len2 : %d\n",len1,len2);
+
+	//memory allocation
+    buf1 = (char*)malloc(sizeof(char)*len1);
+    buf2 = (char*)malloc(sizeof(char)*len2);
+
+	//read file to stream
+	leng1 = fread(buf1, len1, 10, fin1);
+	leng2 = fread(buf2, len2, 10, fin2);
+
+	printf("%s", buf1);
+	printf("%s\n", buf2);
+	
+	ptr1 = strtok(buf1, "\n");
+	ptr2 = strtok(buf2, "\n");
+
+	while( ptr1 != NULL && ptr2 != NULL){
+		if(ptr1 != NULL){
+			printf("%s\n", str_reverse(ptr1));
+			ptr1 = strtok(NULL, "\n");
+		}
+		if(ptr2 != NULL){
+			printf("%s\n", str_reverse(ptr2));
+			ptr2 = strtok(NULL, "\n");
+		}
+	}
+	
+	//while( ptr1 != EOF && ptr2 != EOF){
 
 
-  /*  do {
 
-       
-        
-        if ((ch = fgetc(fin)) == EOF) {
-            if (!count)
-                return 1;
-            else {
-                fputc(0x0a, fout);
-                break;
-            }
-        }
-        fputc(ch, fout);
-        count++;
-        
-
-    } while (ch != 0x0a); */
-    leng = fread(buf, 1024, 1, fin);
-    printf("%s",buf);
     return 0;
 }
 
