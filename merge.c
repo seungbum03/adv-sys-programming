@@ -38,10 +38,12 @@ main(int argc, char *argv[])
     }
    //file open completed
 
-   //finding file size
 	gettimeofday(&before, NULL);
     
-    readaline_and_out(file1,file2,fout,line);
+    if((readaline_and_out(file1,file2,fout,line))){
+			fprintf(stderr, "Error was occured!!\n");
+			goto leave3;
+	}
    
     gettimeofday(&after, NULL);
     
@@ -60,8 +62,14 @@ leave0:
     return ret; 
 }
 
-/* Read a line from fin and write it to fout */
-/* return 1 if fin meets end of file */
+/*===============================================================
+Read entire texts from fin1, fin2 to streams named buf1, buf2.
+Using strtok_r(), break a each strings into a sequence of tokens.
+Then reverse a string, write to a file name fout.
+
+return 1 if it occurs error.
+return 0 if it finished.
+=================================================================*/
 int
 readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 {    
@@ -70,21 +78,41 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 	char *end_str, *end_str2;
 	size_t leng1, leng2;
 	//memory allocation
-    buf1 = (char*)malloc(sizeof(char)*len);
-    buf2 = (char*)malloc(sizeof(char)*len);
+    if((buf1 = (char*)malloc(sizeof(char)*len)) == NULL){
+		fprintf(stderr, "Malloc error\n");
+		return 1;
+	}
+    if((buf2 = (char*)malloc(sizeof(char)*len)) == NULL){
+		fprintf(stderr, "Malloc error\n");
+		return 1;
+	}
 
 	//read file to stream
-	leng1 = fread(buf1, len , 1, fin1);
-	leng2 = fread(buf2, len, 1, fin2);
+	if((leng1 = fread(buf1, len , 1, fin1)) == -1){
+		fprintf(stderr, "fread error\n");
+		return 1;
+	}
+	if((leng2 = fread(buf2, len, 1, fin2)) == -1){
+		fprintf(stderr, "fread error\n");
+		return 1;
+	}
 	
+	//devide a string with "\n"
 	ptr1 = strtok_r(buf1, "\n", &end_str);
 	ptr2 = strtok_r(buf2, "\n", &end_str2);
 	line[0] = 1;
 	line[1] = 1;
+
 	while(ptr1 != NULL || ptr2 != NULL){
-		
+		//fwrite the devided & reversed strings to fout
 		if(ptr1 != NULL){
-			fwrite( str_reverse( ptr1 ), sizeof(char), strlen(ptr1), fout);
+			if((fwrite(str_reverse( ptr1 ), sizeof(char), strlen(ptr1), fout)) == -1){
+				fprintf(stderr, "fwrite error\n");
+				return 1;
+			}
+			/*	add '\n'
+				string was divided with \n.. so it doesen't include \n
+			 */
 			fputc(0x0a, fout);
 			line[2]++;
 			ptr1 = strtok_r(NULL, "\n", &end_str);
@@ -92,7 +120,10 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 		}
 	
 		if(ptr2 != NULL){
-			fwrite( str_reverse( ptr2 ), sizeof(char), strlen(ptr2), fout);
+			if((fwrite(str_reverse( ptr2 ), sizeof(char), strlen(ptr2), fout)) == -1){
+				fprintf(stderr, "fwrite error\n");
+				return 1;
+			}
 			fputc(0x0a, fout);
 			line[2]++;
 			ptr2 = strtok_r(NULL, "\n", &end_str2);
@@ -106,7 +137,12 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 	return 0;
 }
 
-//function of reversing the string
+
+/*====================================================
+                reverse the string.
+char *str -> the string that we want to reverse
+	   	 	  It returns char pointer
+======================================================*/
 char*
 str_reverse(char *str)
 {
@@ -119,6 +155,5 @@ str_reverse(char *str)
 		*p1++ = *p2;
 		*p2-- = tmp;
 	}
-
 	return str;
 }
