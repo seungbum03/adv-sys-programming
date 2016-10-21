@@ -1,72 +1,62 @@
-//Beom's test
+//Beom's read code
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/time.h>
+#include <fcntl.h>
+//define the length of the files
+#define len 104857600
 
-int readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout);
+int readaline_and_out(int fin1, int fin2, int fout, long *line);
 char* str_reverse(char *str);
 
 int
 main(int argc, char *argv[])
 {
-    FILE *file1, *file2, *fout;
-    int eof1 = 0, eof2 = 0;
-    long line1 = 0, line2 = 0, lineout = 0;
+    int file1, file2, fout;
+    long line[3]={0,0,0};
     struct timeval before, after;
     int duration;
     int ret = 1;
-    if (argc != 4) {
+    
+	if (argc != 4) {
         fprintf(stderr, "usage: %s file1 file2 fout\n", argv[0]);
         goto leave0;
     }
-    if ((file1 = fopen(argv[1], "rt")) == NULL) {
+	
+    if ((file1 = open(argv[1], O_RDONLY )) == -1) {
         perror(argv[1]);
         goto leave0;
     }
-    if ((file2 = fopen(argv[2], "rt")) == NULL) {
+    if ((file2 = open(argv[2], O_RDONLY)) == -1) {
         perror(argv[2]);
         goto leave1;
     }
-    if ((fout = fopen(argv[3], "wt")) == NULL) {
+    if ((fout = open(argv[3], O_CREAT | O_WRONLY | O_TRUNC, 0644)) == -1) {
         perror(argv[3]);
         goto leave2;
     }
    //file open completed
-	
-    gettimeofday(&before, NULL);
+
+   //finding file size
+	gettimeofday(&before, NULL);
     
-	/*do {
-        if (!eof1) {
-            if (!readaline_and_out(file1, fout)) {
-                line1++; lineout++;
-            } else
-                eof1 = 1;
-        }
-        if (!eof2) {
-            if (!readaline_and_out(file2, fout)) {
-                line2++; lineout++;
-            } else
-                eof2 = 1;
-        }
-    } while (!eof1 || !eof2);
-   */
-    readaline_and_out(file1,file2,fout);
+    readaline_and_out(file1,file2,fout,line);
    
     gettimeofday(&after, NULL);
     
     duration = (after.tv_sec - before.tv_sec) * 1000000 + (after.tv_usec - before.tv_usec);
     printf("Processing time = %d.%06d sec\n", duration / 1000000, duration % 1000000);
-    printf("File1 = %ld, File2= %ld, Total = %ld Lines\n", line1, line2, lineout);
+    printf("File1 = %ld, File2= %ld, Total = %ld Lines\n", line[0], line[1], line[2]);
     ret = 0;
     
 leave3:
-    fclose(fout);
+    close(fout);
 leave2:
-    fclose(file2);
+    close(file2);
 leave1:
-    fclose(file1);
+    close(file1);
 leave0:
     return ret; 
 }
@@ -74,71 +64,57 @@ leave0:
 /* Read a line from fin and write it to fout */
 /* return 1 if fin meets end of file */
 int
-readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout)
+readaline_and_out(int fin1, int fin2, int fout, long *line)
 {    
-    int ch, count = 0;
-    char *buf1;
-	char *buf2;
-    char *ptr1;
-	char *ptr2;
-	char *end_str;
-	char *end_str2;
-
-	size_t leng1, leng2;
-    int i=0,j=0;
-	long len1, len2;
-
-	//finding file size
-	fseek(fin1, 0, SEEK_END);
-	len1 = ftell(fin1);
-	fseek(fin1, SEEK_CUR, 0);
-
-	fseek(fin2, 0, SEEK_END);
-	len2 = ftell(fin2);
-	fseek(fin2, SEEK_CUR, 0);
-	
-	printf("len1 : %d, len2 : %d\n",len1,len2);
-
+    char *buf1, *buf2;
+    char *ptr1, *ptr2;
+	char *end_str, *end_str2;
+	char enter[2] = "\n";
 	//memory allocation
-    buf1 = (char*)malloc(sizeof(char)*len1);
-    buf2 = (char*)malloc(sizeof(char)*len2);
+    buf1 = (char*)malloc(sizeof(char)*len);
+    buf2 = (char*)malloc(sizeof(char)*len);
 
 	//read file to stream
-	leng1 = fread(buf1, len1, 10, fin1);
-	leng2 = fread(buf2, len2, 10, fin2);
-
-	printf("%s", buf1);
-	printf("%s\n", buf2);
-
-	while(1){
+	if( (read(fin1, buf1, len)) < 0){
+		fprintf(stderr, "read error\n");
+		exit(1);
+	}
+	read(fin2, buf2, len);
+	
+	ptr1 = strtok_r(buf1, "\n", &end_str);
+	ptr2 = strtok_r(buf2, "\n", &end_str2);
+	line[0] = 1;
+	line[1] = 1;
+	while(ptr1 != NULL || ptr2 != NULL){
+		
 		if(ptr1 != NULL){
-			fprintf(stdout, "%s\n", ptr1);
+			write(fout, str_reverse( ptr1 ), strlen(ptr1));
+			line[2]++;
 			ptr1 = strtok_r(NULL, "\n", &end_str);
-			if(ptr1 == NULL)
-				cnt1=1;
+			line[0]++;
 		}
+	
 		if(ptr2 != NULL){
-			fprintf(stdout, "%s\n", ptr2);
+			write(fout, str_reverse( ptr2 ), strlen(ptr2));
+			line[2]++;
 			ptr2 = strtok_r(NULL, "\n", &end_str2);
-			if(ptr2 == NULL){
-				cnt2=1;
-			}
-
+			line[1]++;
 		}
-		if( (cnt1+cnt2) == 2)
-			break;
 	}
 
+	free(buf1);
+	free(buf2);
 
 	return 0;
 }
 
-	char*
+//function of reversing the string
+char*
 str_reverse(char *str)
 {
 	char *p1 = str;
-	int len = strlen(str);
-	char *p2 = str + len - 1;
+	int s_len = strlen(str);
+	char *p2 = str + s_len - 1;
 
 	while (p1 < p2) {
 		char tmp = *p1;

@@ -1,4 +1,4 @@
-//Beom's
+//Beom's origin code
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-//Beom's code
+//Beom's fread code
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
