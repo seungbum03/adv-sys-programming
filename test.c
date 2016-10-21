@@ -61,7 +61,7 @@ leave0:
 }
 
 /* Read a line from fin and write it to fout */
-/* return 1 if fin meets end of file */
+/* return 0 if fisnished */
 int
 readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 {    
@@ -69,6 +69,7 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
     char *ptr1, *ptr2;
 	char *end_str, *end_str2;
 	size_t leng1, leng2;
+	char *dst;
 	//memory allocation
     buf1 = (char*)malloc(sizeof(char)*len);
     buf2 = (char*)malloc(sizeof(char)*len);
@@ -77,23 +78,24 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 	leng1 = fread(buf1, len , 1, fin1);
 	leng2 = fread(buf2, len, 1, fin2);
 	
+	//devide string with '\n'
 	ptr1 = strtok_r(buf1, "\n", &end_str);
 	ptr2 = strtok_r(buf2, "\n", &end_str2);
 	line[0] = 1;
 	line[1] = 1;
+
 	while(ptr1 != NULL || ptr2 != NULL){
-		
 		if(ptr1 != NULL){
-			fwrite( str_reverse( ptr1 ), sizeof(char), strlen(ptr1), fout);
-			fputc(0x0a, fout);
+			fwrite( str_reverse(ptr1), sizeof(char), strlen(ptr1), fout);
+			fprintf(fout, "\n");
 			line[2]++;
 			ptr1 = strtok_r(NULL, "\n", &end_str);
 			line[0]++;
 		}
 	
 		if(ptr2 != NULL){
-			fwrite( str_reverse( ptr2 ), sizeof(char), strlen(ptr2), fout);
-			fputc(0x0a, fout);
+			fwrite( str_reverse(ptr1), sizeof(char), strlen(ptr2), fout);
+			fprintf(fout, "\n");
 			line[2]++;
 			ptr2 = strtok_r(NULL, "\n", &end_str2);
 			line[1]++;
