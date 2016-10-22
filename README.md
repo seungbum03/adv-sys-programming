@@ -1,7 +1,7 @@
 # 고급 시스템 프로그래밍 Advanced System Programming
 
 ## 국민대학교 전자공학부 20113144 심승범
-## Univ.Kookmin, Electronic Engineering, Shim Seung-Beom
+## Univ.Kookmin, Electronic Engineering, Seung-Beom Shim
 
 ### Abstract
 - Uploaded most fastest and highly efficient merge code only.
