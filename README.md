@@ -5,8 +5,7 @@
 
 ### Abstract
 - Uploaded most fastest and highly efficient merge code only.
-- The average consumed time was 15.49sec.
-- The most fastest time was 13.04sec.
+- The average consumed time was 13.55sec.
 - fread() was used for upgrading the performance
 
 
