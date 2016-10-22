@@ -16,8 +16,8 @@ File
 
 
 Usage
-$ make
-$ ./gen 2 100
-$ ./merge /tmp/file_0001 /tmp/file_0002 f_out
+- $ make
+- $ ./gen 2 100
+- $ ./merge /tmp/file_0001 /tmp/file_0002 f_out
 
 
