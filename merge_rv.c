@@ -20,19 +20,19 @@ main(int argc, char *argv[])
     int duration;
     int ret = 1;
     
-	if (argc != 4) {
+	if(argc != 4) {
         fprintf(stderr, "usage: %s file1 file2 fout\n", argv[0]);
         goto leave0;
     }
-    if ((file1 = fopen(argv[1], "rt")) == NULL) {
+    if((file1 = fopen(argv[1], "rt")) == NULL) {
         perror(argv[1]);
         goto leave0;
     }
-    if ((file2 = fopen(argv[2], "rt")) == NULL) {
+    if((file2 = fopen(argv[2], "rt")) == NULL) {
         perror(argv[2]);
         goto leave1;
     }
-    if ((fout = fopen(argv[3], "wt")) == NULL) {
+    if((fout = fopen(argv[3], "wt")) == NULL) {
         perror(argv[3]);
         goto leave2;
     }
@@ -83,16 +83,21 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 		return 1;
 	}
     if((buf2 = (char*)malloc(sizeof(char)*LEN)) == NULL){
+		free(buf1);
 		fprintf(stderr, "Malloc error\n");
 		return 1;
 	}
 
 	//read file to stream
 	if((leng1 = fread(buf1, LEN , 1, fin1)) == -1){
+		free(buf1);
+		free(buf2);
 		fprintf(stderr, "fread error\n");
 		return 1;
 	}
 	if((leng2 = fread(buf2, LEN, 1, fin2)) == -1){
+		free(buf1);
+		free(buf2);
 		fprintf(stderr, "fread error\n");
 		return 1;
 	}
@@ -104,27 +109,14 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 	line[1] = 1;
 
 	while(ptr1 != NULL || ptr2 != NULL){
-		//fwrite the devided & reversed strings to fout
-		if(ptr1 != NULL){
-			if((fwrite(str_reverse( ptr1 ), sizeof(char), strlen(ptr1), fout)) == -1){
-				fprintf(stderr, "fwrite error\n");
-				return 1;
-			}
-			/*	add '\n'
-				string was divided with \n.. so it doesen't include \n
-			 */
-			fputc(0x0a, fout);
+			fprintf(fout, "%s\n", str_reverse(ptr1));
 			line[2]++;
 			ptr1 = strtok_r(NULL, "\n", &end_str);
 			line[0]++;
-		}
+		
 	
 		if(ptr2 != NULL){
-			if((fwrite(str_reverse( ptr2 ), sizeof(char), strlen(ptr2), fout)) == -1){
-				fprintf(stderr, "fwrite error\n");
-				return 1;
-			}
-			fputc(0x0a, fout);
+			fprintf(fout, "%s\n", str_reverse(ptr2));
 			line[2]++;
 			ptr2 = strtok_r(NULL, "\n", &end_str2);
 			line[1]++;

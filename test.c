@@ -106,14 +106,14 @@ readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
 	while(ptr1 != NULL || ptr2 != NULL){
 		//fwrite the devided & reversed strings to fout
 		if(ptr1 != NULL){
-			fprintf(fout, "%s\n", ptr1);
+			fprintf(fout, "%s\n", str_reverse(ptr1));
 			line[2]++;
 			ptr1 = strtok_r(NULL, "\n", &end_str);
 			line[0]++;
 		}
 	
 		if(ptr2 != NULL){
-			fprintf(fout, "%s\n", ptr2);
+			fprintf(fout, "%s\n", str_reverse(ptr2));
 			line[2]++;
 			ptr2 = strtok_r(NULL, "\n", &end_str2);
 			line[1]++;
