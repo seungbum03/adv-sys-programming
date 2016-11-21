@@ -7,6 +7,9 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <termios.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/epoll.h>
 
 #define IP "127.0.0.1"
 #define PORT 3000
