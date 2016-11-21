@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <sys/epoll.h>
 
+
 #define IP "127.0.0.1"
 #define PORT 3000
 #define MAX_CLIENT 1024
@@ -24,7 +25,7 @@ int launch_chat(void);
 int launch_clients(int num_client);
 int launch_server(void);
 int get_server_status(void);
- 
+void nonblockingMode(int fd);
 int
 main(int argc, char *argv[])
 {
@@ -146,7 +147,8 @@ launch_server(void)
     socklen_t AddrSize = sizeof(Addr);
     char data[MAX_DATA], *p;
     int ret, count, i = 1;
-
+	int flag;
+	
     if ((ret = serverSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
         perror("socket");
         goto leave;
@@ -166,6 +168,10 @@ launch_server(void)
         perror("listen");
         goto error;
     }
+
+
+	nonblockingMode(serverSock); //nonblock mode 설정
+
 
     if ((acceptedSock = accept(serverSock, (struct sockaddr*)&Addr, &AddrSize)) < 0) {
         perror("accept");
@@ -236,4 +242,10 @@ void
 resetTermios(void) 
 {
     tcsetattr(0, TCSANOW, &term_old);
+}
+
+void nonblockingMode(int fd){
+	int flag;
+	flag = fcntl(fd, F_GETFL, 0); 
+	fcntl(fd, F_SETFL, flag | O_NONBLOCK); 
 }

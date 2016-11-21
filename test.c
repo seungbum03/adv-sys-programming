@@ -1,148 +1,286 @@
-//Beom's fread code!
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/epoll.h>
 
-//define the length of the files : 100MB
-#define len 104857600
 
-int readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line);
-char* str_reverse(char *str);
+#define IP "127.0.0.1"
+#define PORT 3000
+#define MAX_CLIENT 1024
+#define MAX_DATA 1024
+#define MAX_EVENTS 10
 
+static struct termios term_old;
+void initTermios(void);
+void resetTermios(void);
+
+int launch_chat(void);
+int launch_clients(int num_client);
+int launch_server(void);
+int get_server_status(void);
+void nonblockingMode(int fd);
 int
 main(int argc, char *argv[])
 {
-    FILE *file1, *file2, *fout;
-    long line[3]={0,0,0};
-    struct timeval before, after;
-    int duration;
-    int ret = 1;
-    
-	if (argc != 4) {
-        fprintf(stderr, "usage: %s file1 file2 fout\n", argv[0]);
-        goto leave0;
+    int ret = -1;
+    int num_client;
+
+    if ((argc != 2) && (argc != 3)) {
+usage:  fprintf(stderr, "usage: %s a|m|s|c num_client\n", argv[0]);
+        goto leave;
     }
-    if ((file1 = fopen(argv[1], "rt")) == NULL) {
-        perror(argv[1]);
-        goto leave0;
+    if ((strlen(argv[1]) != 1))
+        goto usage;
+    switch (argv[1][0]) {
+      case 'a': if (argc != 3)
+                    goto usage;
+                if (sscanf(argv[2], "%d", &num_client) != 1)
+                    goto usage;
+                // Launch Automatic Clients
+                ret = launch_clients(num_client);
+                break;
+      case 's': // Launch Server
+                ret = launch_server();
+                break;
+      case 'm': // Read Server Status
+                ret = get_server_status();
+                break;
+      case 'c': // Start_Interactive Chatting Session
+                ret = launch_chat();
+                break;
+      default:
+                goto usage;
     }
-    if ((file2 = fopen(argv[2], "rt")) == NULL) {
-        perror(argv[2]);
+leave:
+    return ret;
+}
+
+int
+launch_chat(void)
+{
+    int clientSock;
+    struct sockaddr_in serverAddr;
+    fd_set rfds, wfds, efds;
+    int ret = -1;
+    char rdata[MAX_DATA];
+    int i = 1;
+    struct timeval tm;
+
+    if ((ret = clientSock = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
+        perror("socket");
+        goto leave;
+    }
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = inet_addr(IP);
+    serverAddr.sin_port = htons(PORT);
+
+    if ((ret = connect(clientSock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)))) {
+        perror("connect");
         goto leave1;
     }
-    if ((fout = fopen(argv[3], "wt")) == NULL) {
-        perror(argv[3]);
-        goto leave2;
+    printf("[CLIENT] Connected to %s\n", inet_ntoa(*(struct in_addr *)&serverAddr.sin_addr));
+
+    initTermios();
+
+    // start select version of chatting ...
+    i = 1;
+    ioctl(0, FIONBIO, (unsigned long *)&i);
+    if ((ret = ioctl(clientSock, FIONBIO, (unsigned long *)&i))) {
+        perror("ioctlsocket");
+        goto leave1;
     }
-   //file open completed
 
-	gettimeofday(&before, NULL);
-    
-    if((readaline_and_out(file1,file2,fout,line))){
-			fprintf(stderr, "Error was occured!!\n");
-			goto leave3;
-	}
-   
-    gettimeofday(&after, NULL);
-    
-    duration = (after.tv_sec - before.tv_sec) * 1000000 + (after.tv_usec - before.tv_usec);
-    printf("Processing time = %d.%06d sec\n", duration / 1000000, duration % 1000000);
-    printf("File1 = %ld, File2= %ld, Total = %ld Lines\n", line[0], line[1], line[2]);
-    ret = 0;
-    
-leave3:
-    fclose(fout);
-leave2:
-    fclose(file2);
+    tm.tv_sec = 0; tm.tv_usec = 1000;
+    while (1) {
+        FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
+        //FD_SET(clientSock, &wfds);
+        FD_SET(clientSock, &rfds);
+        FD_SET(clientSock, &efds);
+        FD_SET(0, &rfds);
+
+        if ((ret = select(clientSock + 1, &rfds, &wfds, &efds, &tm)) < 0) {
+            perror("select");
+            goto leave1;
+        } else if (!ret)	// nothing happened within tm
+            continue;
+        if (FD_ISSET(clientSock, &efds)) {
+            printf("Connection closed\n");
+            goto leave1;
+        }
+        if (FD_ISSET(clientSock, &rfds)) {
+            if (!(ret = recv(clientSock, rdata, MAX_DATA, 0))) {
+                printf("Connection closed by remote host\n");
+                goto leave1;
+            } else if (ret > 0) {
+                for (i = 0; i < ret; i++) {
+                    printf("%c", rdata[i]);
+                }
+                fflush(stdout);
+            } else
+                break;
+        }
+        if (FD_ISSET(0, &rfds)) {
+            int ch = getchar();
+            if ((ret = send(clientSock, &ch, 1, 0)) < 0)
+                goto leave1;
+        }
+    }
 leave1:
-    fclose(file1);
-leave0:
-    return ret; 
+    resetTermios();
+    close(clientSock);
+leave:
+    return -1;
 }
 
-/*===============================================================
-Read entire texts from fin1, fin2 to streams named buf1, buf2.
-Using strtok_r(), break a each strings into a sequence of tokens.
-Then reverse a string, write to a file name fout.
-
-return 1 if it occurs error.
-return 0 if it finished.
-=================================================================*/
 int
-readaline_and_out(FILE *fin1, FILE *fin2, FILE *fout, long *line)
-{    
-    char *buf1, *buf2;
-    char *ptr1, *ptr2;
-	char *end_str, *end_str2;
-	size_t leng1, leng2;
-	//memory allocation
-    if((buf1 = (char*)malloc(sizeof(char)*len)) == NULL){
-		fprintf(stderr, "Malloc error\n");
-		return 1;
+launch_server(void)
+{
+    int serverSock, acceptedSock;
+    struct sockaddr_in Addr;
+    socklen_t AddrSize = sizeof(Addr);
+    char data[MAX_DATA], *p;
+    int ret, count, i = 1;
+	int flag,n;
+	struct epoll_event ev, events[MAX_EVENTS];
+	int listen_sock, conn_sock, nfds, epollfd;
+
+    if ((ret = serverSock = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+        perror("socket");
+        goto leave;
+    }
+
+    setsockopt(serverSock, SOL_SOCKET, SO_REUSEADDR, (void *)&i, sizeof(i));
+
+    Addr.sin_family = AF_INET;
+    Addr.sin_addr.s_addr = INADDR_ANY;
+    Addr.sin_port = htons(PORT);
+    if ((ret = bind(serverSock, (struct sockaddr *)&Addr,sizeof(Addr)))) {
+        perror("bind");
+        goto error;
+    }
+
+    if ((ret = listen(serverSock, 1))) {
+        perror("listen");
+        goto error;
+    }
+
+	epollfd = epoll_create(10);
+	if (epollfd == -1){
+		perror("epoll_create");
+		exit(EXIT_FAILURE);
 	}
-    if((buf2 = (char*)malloc(sizeof(char)*len)) == NULL){
-		fprintf(stderr, "Malloc error\n");
-		return 1;
+	ev.events = EPOLLIN;
+	ev.data.fd = listen_sock;
+	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, ret, &ev) == -1) {
+		perror("epoll_ctl : listen_sock");
+		exit(EXIT_FAILURE);
 	}
 
-	//read file to stream
-	if((leng1 = fread(buf1, len , 1, fin1)) == -1){
-		fprintf(stderr, "fread error\n");
-		return 1;
-	}
-	if((leng2 = fread(buf2, len, 1, fin2)) == -1){
-		fprintf(stderr, "fread error\n");
-		return 1;
-	}
-	
-	//devide a string with "\n"
-	ptr1 = strtok_r(buf1, "\n", &end_str);
-	ptr2 = strtok_r(buf2, "\n", &end_str2);
-	line[0] = 1;
-	line[1] = 1;
-
-	while(ptr1 != NULL || ptr2 != NULL){
-		//fwrite the devided & reversed strings to fout
-		if(ptr1 != NULL){
-			fprintf(fout, "%s\n", str_reverse(ptr1));
-			line[2]++;
-			ptr1 = strtok_r(NULL, "\n", &end_str);
-			line[0]++;
+	for (;;){
+		if ((nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1)) == -1) {
+			perror("epoll_pwait");
+			exit(EXIT_FAILURE);
 		}
-	
-		if(ptr2 != NULL){
-			fprintf(fout, "%s\n", str_reverse(ptr2));
-			line[2]++;
-			ptr2 = strtok_r(NULL, "\n", &end_str2);
-			line[1]++;
+		for(n = 0; n < nfds; ++n){
+			if (events[n].data.fd == acceptedSock) {
+				conn_sock = accept(serverSock, (struct sockaddr *) &Addr, &AddrSize );
+				if (conn_sock == -1){
+					perror("accept");
+					exit(EXIT_FAILURE);
+				}
+				nonblockingMode(conn_sock);
+				ev.events = EPOLLIN | EPOLLET;
+				ev.data.fd = conn_sock;
+				if (epoll_ctl(epollfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1 ){
+					perror("epoll_ctl : conn_sock");
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				fprintf(stdout, "%s", events[n].data.fd);
+			}
 		}
 	}
+ 
 
-	free(buf1);
-	free(buf2);
 
-	return 0;
+
+	
+	printf("[SERVER] Connected to %s\n", inet_ntoa(*(struct in_addr *)&Addr.sin_addr));
+    //close(serverSock);
+
+    while (1) {
+        if (!(ret = count = recv(acceptedSock, data, MAX_DATA, 0))) {
+            fprintf(stderr, "Connect Closed by Client\n");
+            break;
+        }
+        if (ret < 0) {
+            perror("recv");
+            break;
+        }
+        //printf("[%d]", count); fflush(stdout);
+        for (i = 0; i < count; i++)
+            printf("%c", data[i]);
+        fflush(stdout);
+        p = data;
+        while (count) {
+            if ((ret = send(acceptedSock, p, count, 0)) < 0) {
+                perror("send");
+                break;
+            }
+            count -= ret;
+            p = p + ret;
+        }
+    }
+
+    close(acceptedSock);
+error:
+    close(serverSock);
+leave:
+    return ret;
 }
 
-
-/*====================================================
-                reverse the string.
-char *str -> the string that we want to reverse
-	   	 	  It returns char pointer
-======================================================*/
-char*
-str_reverse(char *str)
+int
+launch_clients(int num_client)
 {
-	char *p1 = str;
-	int s_len = strlen(str);
-	char *p2 = str + s_len - 1;
+    return 0;
+}
 
-	while (p1 < p2) {
-		char tmp = *p1;
-		*p1++ = *p2;
-		*p2-- = tmp;
-	}
-	return str;
+int
+get_server_status(void)
+{
+    return 0;
+}
+
+/* Initialize new terminal i/o settings */
+void
+initTermios(void) 
+{
+    struct termios term_new;
+
+    tcgetattr(0, &term_old); /* grab old terminal i/o settings */
+    term_new = term_old; /* make new settings same as old settings */
+    term_new.c_lflag &= ~ICANON; /* disable buffered i/o */
+    term_new.c_lflag &= ~ECHO;   /* set no echo mode */
+    tcsetattr(0, TCSANOW, &term_new); /* use these new terminal i/o settings now */
+}
+
+/* Restore old terminal i/o settings */
+void
+resetTermios(void) 
+{
+    tcsetattr(0, TCSANOW, &term_old);
+}
+
+void nonblockingMode(int fd){
+	int flag;
+	flag = fcntl(fd, F_GETFL, 0); 
+	fcntl(fd, F_SETFL, flag | O_NONBLOCK); 
 }
