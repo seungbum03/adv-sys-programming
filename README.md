@@ -12,11 +12,16 @@
 ### File
 - gen.c   : n 개의  m MB의 크기의 text 파일 만들기 (file merge용)
 - merge.c : merge.c 두개의 파일을 merge 하고 시간을 재는 예제 소스
-
-
-### Usage
+- chat.c : 20개의 파일을 읽어와 소켓통신하는 프로그램
+### Usage 1
 - $ make
 - $ ./gen 2 100
 - $ ./merge /tmp/file_0001 /tmp/file_0002 f_out
 
+### Usage 2
+- $ make
+- $ ./gen 20 1
+- $ ./chat s
+- $ ./test.sh
+- 친 터미널에서 엔터 
 
